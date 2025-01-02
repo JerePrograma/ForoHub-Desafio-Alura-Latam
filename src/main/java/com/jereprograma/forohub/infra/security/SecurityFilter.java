@@ -22,19 +22,24 @@ public class SecurityFilter extends OncePerRequestFilter {
     private UsuarioRepository usuarioRepository;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException, ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         var authHeader = request.getHeader("Authorization");
         if (authHeader != null) {
             var token = authHeader.replace("Bearer ", "");
-            var email = tokenService.getSubject(token); //Extrae nombre de usuario
-            if (email != null) {
-                //Si trae el nombre de usuario, el Token es valido
-                var usuario = usuarioRepository.findByEmail(email);
-                var authetication = new UsernamePasswordAuthenticationToken(usuario, null,
-                        usuario.getAuthorities()); //Forzamos inicio de sesion
-                SecurityContextHolder.getContext().setAuthentication(authetication);
+            try {
+                var email = tokenService.getSubject(token);
+                if (email != null) {
+                    var usuario = usuarioRepository.findByEmail(email);
+                    var authentication = new UsernamePasswordAuthenticationToken(usuario, null, usuario.getAuthorities());
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                }
+            } catch (RuntimeException e) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().write("Error de autenticación: " + e.getMessage());
+                return;
             }
         }
         filterChain.doFilter(request, response);
     }
+
 }

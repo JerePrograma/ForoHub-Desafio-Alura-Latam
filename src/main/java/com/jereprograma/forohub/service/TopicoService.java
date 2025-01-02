@@ -37,9 +37,19 @@ public class TopicoService {
      * @return Página de tópicos mapeados a DTOs de respuesta.
      */
     public Page<TopicoResponse> getAllTopicos(Pageable pageable) {
-        return topicoRepository.findAll(pageable)
-                .map(this::mapToResponse);
+        // Lista de campos válidos para ordenar
+        List<String> camposPermitidos = List.of("titulo", "mensaje", "fechaCreacion", "status");
+
+        pageable.getSort().forEach(order -> {
+            String propiedad = order.getProperty();
+            if (!camposPermitidos.contains(propiedad)) {
+                throw new IllegalArgumentException("El campo '" + propiedad + "' no es válido para la ordenación. Campos permitidos: " + camposPermitidos);
+            }
+        });
+
+        return topicoRepository.findAll(pageable).map(this::mapToResponse);
     }
+
 
     /**
      * Obtiene un tópico por ID y lo mapea a un DTO de respuesta.
@@ -139,15 +149,47 @@ public class TopicoService {
      * Mapea una entidad `Topico` a un DTO de respuesta.
      */
     private TopicoResponse mapToResponse(Topico topico) {
+        if (topico == null) {
+            throw new RuntimeException("El tópico no puede ser nulo.");
+        }
         return new TopicoResponse(
                 topico.getId(),
                 topico.getTitulo(),
                 topico.getMensaje(),
                 topico.getFechaCreacion(),
                 topico.getStatus(),
-                topico.getAutor().getId(),
-                topico.getCurso().getId(),
+                topico.getAutor() != null ? topico.getAutor().getId() : null,
+                topico.getCurso() != null ? topico.getCurso().getId() : null,
                 topico.getRespuesta() != null ? topico.getRespuesta().getId() : null
         );
     }
+
+
+    public List<TopicoResponse> filtrarTopicos(String curso, Integer anio) {
+        List<Topico> topicos;
+
+        if (curso != null && anio != null) {
+            topicos = topicoRepository.findByCursoAndYear(curso, anio);
+        } else if (curso != null) {
+            topicos = topicoRepository.findAll().stream()
+                    .filter(t -> t.getCurso() != null && curso.equalsIgnoreCase(t.getCurso().getNombre()))
+                    .collect(Collectors.toList());
+        } else if (anio != null) {
+            topicos = topicoRepository.findAll().stream()
+                    .filter(t -> t.getFechaCreacion() != null && t.getFechaCreacion().getYear() == anio)
+                    .collect(Collectors.toList());
+        } else {
+            topicos = topicoRepository.findAll();
+        }
+
+        if (topicos.isEmpty()) {
+            throw new RuntimeException("No se encontraron tópicos con los filtros especificados.");
+        }
+
+        return topicos.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+
 }

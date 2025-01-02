@@ -26,35 +26,32 @@ public class TokenService {
                     .withIssuer("Foro Hub")
                     .withSubject(usuario.getEmail())
                     .withClaim("id", usuario.getId())
+                    .withClaim("role", usuario.getPerfil().getNombre()) // Incluye el rol
                     .withExpiresAt(generarFechaExpiracion())
                     .sign(algorithm);
         } catch (JWTCreationException exception) {
-            // Invalid Signing configuration / Couldn't convert Claims.
-            throw new RuntimeException(exception);
+            throw new RuntimeException("Error al generar el token JWT", exception);
         }
     }
 
+
     public String getSubject(String token) {
         if (token == null) {
-            throw new RuntimeException();
+            throw new RuntimeException("Token no proporcionado.");
         }
-        DecodedJWT verifier = null;
         try {
             Algorithm algorithm = Algorithm.HMAC256(apiScret);
-            verifier = JWT.require(algorithm)
-                    // specify any specific claim validations
+            return JWT.require(algorithm)
                     .withIssuer("Foro Hub")
-                    // reusable verifier instance
                     .build()
-                    .verify(token);
-            verifier.getSubject();
-        } catch (JWTVerificationException exception) {
-            System.out.println(exception.getMessage());
+                    .verify(token)
+                    .getSubject();
+        } catch (JWTVerificationException e) {
+            if (e.getMessage().contains("The Token has expired")) {
+                throw new RuntimeException("El token ha expirado. Por favor, inicie sesión nuevamente.");
+            }
+            throw new RuntimeException("Token inválido: " + e.getMessage());
         }
-        if (verifier == null) {
-            throw new RuntimeException("Verifier invalido");
-        }
-        return verifier.getSubject();
     }
 
     private Instant generarFechaExpiracion() {

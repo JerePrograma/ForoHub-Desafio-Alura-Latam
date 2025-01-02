@@ -6,7 +6,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 
 @Data
 @Entity
@@ -35,9 +35,7 @@ public class Usuario implements UserDetails {
     // Métodos de UserDetails
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        // Si los roles están en la entidad Perfil, puedes mapearlos aquí.
-        // En este caso, devolvemos una lista vacía.
-        return Collections.emptyList();
+        return List.of(() -> "ROLE_" + perfil.getNombre().toUpperCase()); // Asegúrate de usar el prefijo ROLE_
     }
 
     @Override
